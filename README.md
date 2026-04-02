@@ -1,66 +1,130 @@
-# Axario Chat Backend
+# Axario Backend — Chat + Wycena
 
-Backend chatbota AI dla strony axario.pl.
-Node.js + Express + OpenAI API. Gotowy do Render.
+Backend dla axario.pl: chatbot AI (OpenAI) + formularz wyceny (nodemailer).
 
----
-
-## Pliki do wrzucenia do repo
+## Pliki
 
 ```
-server.js
-openai.js
+server.js       ← endpointy: /api/health, /api/chat, /api/quote
+openai.js       ← logika chatbota AI
+mailer.js       ← wysyłka 2 maili przez SMTP
+validators.js   ← walidacja formularza wyceny
 package.json
 .env.example
 .gitignore
-README.md
 ```
-
-NIE wrzucaj: `node_modules/`, `.env`
 
 ---
 
 ## Deploy na Render
 
-1. Wejdź na render.com → **New Web Service**
-2. Połącz repozytorium GitHub
-3. Ustaw:
+### 1. Env variables — dodaj w Render → Environment
 
+| Klucz | Opis |
+|-------|------|
+| `OPENAI_API_KEY` | Klucz z platform.openai.com |
+| `SMTP_HOST` | np. `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_SECURE` | `false` (dla 587), `true` dla 465 |
+| `SMTP_USER` | Twój adres email (nadawca) |
+| `SMTP_PASS` | Hasło aplikacji (nie zwykłe hasło!) |
+| `MAIL_TO` | Twój mail do odbierania zgłoszeń |
+| `MAIL_FROM` | Adres nadawcy w mailach |
+
+### 2. Gmail — App Password
+Gmail wymaga "Hasła aplikacji" zamiast zwykłego hasła:
+1. Google Account → Security → 2-Step Verification (musi być włączone)
+2. Google Account → Security → App Passwords
+3. Stwórz hasło dla "Mail" → skopiuj 16 znaków → wklej jako `SMTP_PASS`
+
+### 3. Build & Start
 | Pole | Wartość |
 |------|---------|
-| Environment | `Node` |
 | Build Command | `npm install` |
 | Start Command | `npm start` |
 
-4. W zakładce **Environment** dodaj zmienną:
-
-| Klucz | Wartość |
-|-------|---------|
-| `OPENAI_API_KEY` | `sk-proj-...` |
-
-5. Kliknij **Deploy** — Render da Ci URL np.:
-   `https://axario-chat-backend.onrender.com`
-
 ---
 
-## Podpięcie frontendu
+## Testy curl
 
-W `script.js` na stronie zmień URL chatbota:
-
-```js
-const CHAT_API_URL = 'https://axario-chat-backend.onrender.com/api/chat';
-```
-
----
-
-## Sprawdzenie czy działa
-
+### Health check
 ```bash
 curl https://axario-chat-backend.onrender.com/api/health
 # → { "ok": true }
+```
 
+### Chat
+```bash
 curl -X POST https://axario-chat-backend.onrender.com/api/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Ile kosztuje strona firmowa?"}'
 # → { "reply": "..." }
+```
+
+### Wycena — poprawne dane
+```bash
+curl -X POST https://axario-chat-backend.onrender.com/api/quote \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Jan Kowalski",
+    "email": "jan@firma.pl",
+    "phone": "500000000",
+    "projectType": "Strona firmowa",
+    "message": "Potrzebuję strony dla kliniki.",
+    "budget": "3000-5000 zł",
+    "consent": true
+  }'
+# → { "success": true, "message": "Zgłoszenie przyjęte..." }
+```
+
+### Wycena — błędne dane
+```bash
+curl -X POST https://axario-chat-backend.onrender.com/api/quote \
+  -H "Content-Type: application/json" \
+  -d '{"name": "", "email": "zly-email", "consent": false}'
+# → { "success": false, "errors": [...] }
+```
+
+### Honeypot — bot wypełnił ukryte pole
+```bash
+curl -X POST https://axario-chat-backend.onrender.com/api/quote \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Bot", "email": "bot@spam.com", "website": "http://spam.com", "consent": true}'
+# → { "success": true } (cicha odmowa — bot nie wie że został odrzucony)
+```
+
+### Rate limit — po 5 próbach w 15 minut
+```bash
+# 6. próba zwróci:
+# HTTP 429 → { "success": false, "message": "Zbyt wiele prób..." }
+```
+
+---
+
+## Frontend — podpięcie formularza
+
+W `script.js` na stronie Axario wyślij JSON do endpointu:
+
+```js
+const res = await fetch('https://axario-chat-backend.onrender.com/api/quote', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name:        form.name.value,
+    email:       form.email.value,
+    phone:       form.phone.value,       // opcjonalne
+    projectType: form.projectType.value,
+    message:     form.message.value,
+    budget:      form.budget.value,      // opcjonalne
+    consent:     form.consent.checked,
+    website:     form.website?.value,    // honeypot — ukryte pole w HTML
+  }),
+});
+const data = await res.json();
+```
+
+Honeypot w HTML formularza (niewidoczne dla ludzi, widoczne dla botów):
+```html
+<input type="text" name="website" id="website"
+  style="display:none" tabindex="-1" autocomplete="off" />
 ```

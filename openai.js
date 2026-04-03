@@ -48,6 +48,14 @@ Gdy to pasuje do rozmowy, delikatnie zachęcaj do następnego kroku, np.:
 
 Nie przesadzaj z CTA w każdej wiadomości.
 Najważniejsze jest, żeby odpowiedź była pomocna, konkretna i zwiększała zaufanie do Axario.
+Informacje o Axario:
+- firma tworzy strony internetowe dla firm usługowych,
+- realizuje landing page, strony firmowe, sklepy, SEO i chatboty AI,
+- działa w całej Polsce,
+- oferuje darmową wycenę,
+- odpowiada w ciągu 24 godzin,
+- projektuje strony premium, nowoczesne i dopasowane do branży,
+- może pomóc także z treściami, strukturą strony i kierunkiem projektu.
 `.trim();
 
 async function askAxario(userMessage) {
